@@ -40,19 +40,17 @@ namespace Masuit.Tools.Files
         /// <returns>文件流</returns>
         public MemoryStream ZipStream(List<string> files, string rootdir = "")
         {
-            using (var archive = CreateZipArchive(files, rootdir))
+            using var archive = CreateZipArchive(files, rootdir);
+            var ms = new MemoryStream();
+            archive.SaveTo(ms, new WriterOptions(CompressionType.Deflate)
             {
-                var ms = new MemoryStream();
-                archive.SaveTo(ms, new WriterOptions(CompressionType.Deflate)
+                LeaveStreamOpen = true,
+                ArchiveEncoding = new ArchiveEncoding()
                 {
-                    LeaveStreamOpen = true,
-                    ArchiveEncoding = new ArchiveEncoding()
-                    {
-                        Default = Encoding.UTF8
-                    }
-                });
-                return ms;
-            }
+                    Default = Encoding.UTF8
+                }
+            });
+            return ms;
         }
 
         /// <summary>
@@ -63,17 +61,15 @@ namespace Masuit.Tools.Files
         /// <param name="rootdir">压缩包内部根文件夹</param>
         public void Zip(List<string> files, string zipFile, string rootdir = "")
         {
-            using (var archive = CreateZipArchive(files, rootdir))
+            using var archive = CreateZipArchive(files, rootdir);
+            archive.SaveTo(zipFile, new WriterOptions(CompressionType.Deflate)
             {
-                archive.SaveTo(zipFile, new WriterOptions(CompressionType.Deflate)
+                LeaveStreamOpen = true,
+                ArchiveEncoding = new ArchiveEncoding()
                 {
-                    LeaveStreamOpen = true,
-                    ArchiveEncoding = new ArchiveEncoding()
-                    {
-                        Default = Encoding.UTF8
-                    }
-                });
-            }
+                    Default = Encoding.UTF8
+                }
+            });
         }
 
         /// <summary>
@@ -89,17 +85,15 @@ namespace Masuit.Tools.Files
                 dir = Path.GetDirectoryName(rar);
             }
 
-            using (var archive = RarArchive.Open(rar))
+            using var archive = RarArchive.Open(rar);
+            var entries = ignoreEmptyDir ? archive.Entries.Where(entry => !entry.IsDirectory) : archive.Entries;
+            foreach (var entry in entries)
             {
-                var entries = ignoreEmptyDir ? archive.Entries.Where(entry => !entry.IsDirectory) : archive.Entries;
-                foreach (var entry in entries)
+                entry.WriteToDirectory(dir, new ExtractionOptions()
                 {
-                    entry.WriteToDirectory(dir, new ExtractionOptions()
-                    {
-                        ExtractFullPath = true,
-                        Overwrite = true
-                    });
-                }
+                    ExtractFullPath = true,
+                    Overwrite = true
+                });
             }
         }
 
@@ -124,31 +118,27 @@ namespace Masuit.Tools.Files
                 dir = Path.GetDirectoryName(compressedFile);
             }
 
-            using (Stream stream = File.OpenRead(compressedFile))
+            using Stream stream = File.OpenRead(compressedFile);
+            using var reader = ReaderFactory.Open(stream);
+            while (reader.MoveToNextEntry())
             {
-                using (var reader = ReaderFactory.Open(stream))
+                if (ignoreEmptyDir)
                 {
-                    while (reader.MoveToNextEntry())
+                    reader.WriteEntryToDirectory(dir, new ExtractionOptions()
                     {
-                        if (ignoreEmptyDir)
+                        ExtractFullPath = true,
+                        Overwrite = true
+                    });
+                }
+                else
+                {
+                    if (!reader.Entry.IsDirectory)
+                    {
+                        reader.WriteEntryToDirectory(dir, new ExtractionOptions()
                         {
-                            reader.WriteEntryToDirectory(dir, new ExtractionOptions()
-                            {
-                                ExtractFullPath = true,
-                                Overwrite = true
-                            });
-                        }
-                        else
-                        {
-                            if (!reader.Entry.IsDirectory)
-                            {
-                                reader.WriteEntryToDirectory(dir, new ExtractionOptions()
-                                {
-                                    ExtractFullPath = true,
-                                    Overwrite = true
-                                });
-                            }
-                        }
+                            ExtractFullPath = true,
+                            Overwrite = true
+                        });
                     }
                 }
             }
@@ -247,8 +237,13 @@ namespace Masuit.Tools.Files
                 return new Dictionary<string, string>();
             }
 
-            string dirname = new string(fileList.First().Substring(0, fileList.Min(s => s.Length)).TakeWhile((c, i) => fileList.All(s => s[i] == c)).ToArray());
-            Dictionary<string, string> dic = fileList.ToDictionary(s => s, s => s.Substring(dirname.Length));
+            var dirname = new string(fileList.First().Substring(0, fileList.Min(s => s.Length)).TakeWhile((c, i) => fileList.All(s => s[i] == c)).ToArray());
+            if (!Directory.Exists(dirname))
+            {
+                dirname = Directory.GetParent(dirname).FullName;
+            }
+
+            var dic = fileList.ToDictionary(s => s, s => s.Substring(dirname.Length));
             return dic;
         }
     }
