@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -305,6 +306,22 @@ namespace Masuit.Tools
         public static async Task<TDestination> MapAsync<TDestination>(this object source) where TDestination : new() => await Task.Run(() => JsonConvert.DeserializeObject<TDestination>(JsonConvert.SerializeObject(source)));
 
         /// <summary>
+        /// 复制一个新的对象
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="source"></param>
+        /// <returns></returns>
+        public static T Copy<T>(this T source) where T : new()
+        {
+            T dest = new T();
+            dest.GetType().GetProperties().ForEach(p =>
+            {
+                p.SetValue(dest, source.GetType().GetProperty(p.Name)?.GetValue(source));
+            });
+            return dest;
+        }
+
+        /// <summary>
         /// 复制到一个现有对象
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -480,13 +497,6 @@ namespace Masuit.Tools
             ReferenceLoopHandling = ReferenceLoopHandling.Ignore
         });
 
-        /// <summary>
-        /// 转换成json字符串
-        /// </summary>
-        /// <param name="source"></param>
-        /// <returns></returns>
-        public static async Task<string> ToJsonStringAsync(this object source) => await Task.Run(() => JsonConvert.SerializeObject(source));
-
         #region 数字互转
 
         /// <summary>
@@ -496,7 +506,7 @@ namespace Masuit.Tools
         /// <returns>int类型的数字</returns>
         public static int ToInt32(this string s)
         {
-            Int32.TryParse(s, out int result);
+            int.TryParse(s, out int result);
             return result;
         }
 
@@ -507,7 +517,7 @@ namespace Masuit.Tools
         /// <returns>int类型的数字</returns>
         public static long ToInt64(this string s)
         {
-            Int64.TryParse(s, out var result);
+            long.TryParse(s, out var result);
             return result;
         }
 
@@ -518,7 +528,7 @@ namespace Masuit.Tools
         /// <returns>double类型的数据</returns>
         public static double ToDouble(this string s)
         {
-            Double.TryParse(s, out var result);
+            double.TryParse(s, out var result);
             return result;
         }
 
@@ -529,7 +539,7 @@ namespace Masuit.Tools
         /// <returns>int类型的数字</returns>
         public static decimal ToDecimal(this string s)
         {
-            Decimal.TryParse(s, out var result);
+            decimal.TryParse(s, out var result);
             return result;
         }
 
@@ -581,7 +591,7 @@ namespace Masuit.Tools
         /// <returns></returns>
         public static long ToLong(this string str, long defaultResult)
         {
-            if (!Int64.TryParse(str, out var result))
+            if (!long.TryParse(str, out var result))
             {
                 result = defaultResult;
             }
@@ -617,8 +627,17 @@ namespace Masuit.Tools
         /// </summary>
         /// <param name="s">源字符串</param>
         /// <param name="keys">关键词列表</param>
+        /// <param name="ignoreCase">忽略大小写</param>
         /// <returns></returns>
-        public static bool Contains(this string s, IEnumerable<string> keys) => Regex.IsMatch(s.ToLower(), String.Join("|", keys).ToLower());
+        public static bool Contains(this string s, IEnumerable<string> keys, bool ignoreCase = true)
+        {
+            if (ignoreCase)
+            {
+                return Regex.IsMatch(s.ToLower(), string.Join("|", keys).ToLower());
+            }
+
+            return Regex.IsMatch(s, string.Join("|", keys));
+        }
 
         #endregion
 
@@ -694,22 +713,21 @@ namespace Masuit.Tools
         /// <returns>是否匹配成功</returns>
         public static bool MatchIdentifyCard(this string s)
         {
+            string address = "11x22x35x44x53x12x23x36x45x54x13x31x37x46x61x14x32x41x50x62x15x33x42x51x63x21x34x43x52x64x65x71x81x82x91";
             if (s.Length == 18)
             {
-                if (Int64.TryParse(s.Remove(17), out var n) == false || n < Math.Pow(10, 16) || Int64.TryParse(s.Replace('x', '0').Replace('X', '0'), out n) == false)
+                if (long.TryParse(s.Remove(17), out var n) == false || n < Math.Pow(10, 16) || long.TryParse(s.Replace('x', '0').Replace('X', '0'), out n) == false)
                 {
                     return false; //数字验证  
                 }
 
-                string address = "11x22x35x44x53x12x23x36x45x54x13x31x37x46x61x14x32x41x50x62x15x33x42x51x63x21x34x43x52x64x65x71x81x82x91";
                 if (address.IndexOf(s.Remove(2), StringComparison.Ordinal) == -1)
                 {
                     return false; //省份验证  
                 }
 
                 string birth = s.Substring(6, 8).Insert(6, "-").Insert(4, "-");
-                DateTime time;
-                if (!DateTime.TryParse(birth, out time))
+                if (!DateTime.TryParse(birth, out _))
                 {
                     return false; //生日验证  
                 }
@@ -723,36 +741,24 @@ namespace Masuit.Tools
                     sum += wi[i].ToInt32() * ai[i].ToString().ToInt32();
                 }
 
-                int y;
-                Math.DivRem(sum, 11, out y);
-                if (arrVarifyCode[y] != s.Substring(17, 1).ToLower())
-                {
-                    return false; //校验码验证  
-                }
-
-                return true; //符合GB11643-1999标准  
+                Math.DivRem(sum, 11, out var y);
+                return arrVarifyCode[y] == s.Substring(17, 1).ToLower();
             }
 
             if (s.Length == 15)
             {
-                if (Int64.TryParse(s, out var n) == false || n < Math.Pow(10, 14))
+                if (long.TryParse(s, out var n) == false || n < Math.Pow(10, 14))
                 {
                     return false; //数字验证  
                 }
 
-                string address = "11x22x35x44x53x12x23x36x45x54x13x31x37x46x61x14x32x41x50x62x15x33x42x51x63x21x34x43x52x64x65x71x81x82x91";
                 if (address.IndexOf(s.Remove(2), StringComparison.Ordinal) == -1)
                 {
                     return false; //省份验证  
                 }
 
                 string birth = s.Substring(6, 6).Insert(4, "-").Insert(2, "-");
-                if (DateTime.TryParse(birth, out _) == false)
-                {
-                    return false; //生日验证  
-                }
-
-                return true;
+                return DateTime.TryParse(birth, out _);
             }
 
             return false;
@@ -839,17 +845,17 @@ namespace Masuit.Tools
         /// <summary>
         /// 严格比较两个对象是否是同一对象
         /// </summary>
-        /// <param name="_this">自己</param>
+        /// <param name="this">自己</param>
         /// <param name="o">需要比较的对象</param>
         /// <returns>是否同一对象</returns>
-        public new static bool ReferenceEquals(this object _this, object o) => object.ReferenceEquals(_this, o);
+        public new static bool ReferenceEquals(this object @this, object o) => object.ReferenceEquals(@this, o);
 
         /// <summary>
         /// 判断字符串是否为空
         /// </summary>
         /// <param name="s"></param>
         /// <returns></returns>
-        public static bool IsNullOrEmpty(this string s) => String.IsNullOrEmpty(s);
+        public static bool IsNullOrEmpty(this string s) => string.IsNullOrEmpty(s);
 
         /// <summary>
         /// 类型直转
@@ -1042,7 +1048,7 @@ namespace Masuit.Tools
             {
                 return IsPrivateIP(IPAddress.Parse(ip));
             }
-            throw new ArgumentException(ip + " 不是一个合法的ip地址");
+            throw new ArgumentException(ip + "不是一个合法的ip地址");
         }
 
         /// <summary>
@@ -1057,18 +1063,11 @@ namespace Masuit.Tools
             {
                 case UriHostNameType.Dns:
                     var ipHostEntry = Dns.GetHostEntry(uri.DnsSafeHost);
-                    foreach (IPAddress ipAddress in ipHostEntry.AddressList)
+                    if (ipHostEntry.AddressList.Where(ipAddress => ipAddress.AddressFamily == AddressFamily.InterNetwork).Any(ipAddress => !ipAddress.IsPrivateIP()))
                     {
-                        if (ipAddress.AddressFamily == AddressFamily.InterNetwork)
-                        {
-                            if (!ipAddress.IsPrivateIP())
-                            {
-                                return true;
-                            }
-                        }
+                        return true;
                     }
                     break;
-
                 case UriHostNameType.IPv4:
                     return !IPAddress.Parse(uri.DnsSafeHost).IsPrivateIP();
             }
@@ -1081,7 +1080,7 @@ namespace Masuit.Tools
         /// <param name="r"></param>
         /// <param name="seed"></param>
         /// <returns></returns>
-        public static int StrictNext(this Random r, int seed = Int32.MaxValue)
+        public static int StrictNext(this Random r, int seed = int.MaxValue)
         {
             return new Random((int)Stopwatch.GetTimestamp()).Next(seed);
         }
@@ -1109,18 +1108,195 @@ namespace Masuit.Tools
         /// <returns></returns>
         public static MemoryStream SaveAsMemoryStream(this Stream stream, bool dispose = false)
         {
-            var ms = new MemoryStream();
-            stream.CopyTo(ms);
-            try
+            return new MemoryStream(stream.ToArray());
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <returns></returns>
+        public static byte[] ToArray(this Stream stream)
+        {
+            byte[] bytes = new byte[stream.Length];
+            stream.Read(bytes, 0, bytes.Length);
+
+            // 设置当前流的位置为流的开始
+            stream.Seek(0, SeekOrigin.Begin);
+            return bytes;
+        }
+
+        /// <summary>
+        /// 添加多个元素
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="this"></param>
+        /// <param name="values"></param>
+        public static void AddRange<T>(this ICollection<T> @this, params T[] values)
+        {
+            foreach (var obj in values)
             {
-                return ms;
+                @this.Add(obj);
             }
-            finally
+        }
+
+        /// <summary>
+        /// 添加符合条件的多个元素
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="this"></param>
+        /// <param name="predicate"></param>
+        /// <param name="values"></param>
+        public static void AddRangeIf<T>(this ICollection<T> @this, Func<T, bool> predicate, params T[] values)
+        {
+            foreach (var obj in values)
             {
-                if (dispose)
+                if (predicate(obj))
                 {
-                    stream.Dispose();
+                    @this.Add(obj);
                 }
+            }
+        }
+
+        /// <summary>
+        /// 添加不重复的元素
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="this"></param>
+        /// <param name="values"></param>
+        public static void AddRangeIfNotContains<T>(this ICollection<T> @this, params T[] values)
+        {
+            foreach (T obj in values)
+            {
+                if (!@this.Contains(obj))
+                {
+                    @this.Add(obj);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 转换成字节数组
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public static byte[] GetBytes(this short value)
+        {
+            return BitConverter.GetBytes(value);
+        }
+
+        /// <summary>
+        /// 转换成字节数组
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public static byte[] GetBytes(this int value)
+        {
+            return BitConverter.GetBytes(value);
+        }
+
+        /// <summary>
+        /// 转换成字节数组
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public static byte[] GetBytes(this long value)
+        {
+            return BitConverter.GetBytes(value);
+        }
+
+        /// <summary>
+        /// 转换成字节数组
+        /// </summary>
+        /// <param name="this"></param>
+        /// <returns></returns>
+        public static byte[] ToByteArray(this string @this)
+        {
+            return Activator.CreateInstance<ASCIIEncoding>().GetBytes(@this);
+        }
+
+        /// <summary>
+        /// 添加或更新键值对
+        /// </summary>
+        /// <typeparam name="TKey"></typeparam>
+        /// <typeparam name="TValue"></typeparam>
+        /// <param name="this"></param>
+        /// <param name="key">键</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        public static TValue AddOrUpdate<TKey, TValue>(this IDictionary<TKey, TValue> @this, TKey key, TValue value)
+        {
+            if (!@this.ContainsKey(key))
+            {
+                @this.Add(new KeyValuePair<TKey, TValue>(key, value));
+            }
+            else
+            {
+                @this[key] = value;
+            }
+
+            return @this[key];
+        }
+
+        /// <summary>
+        /// 添加或更新键值对
+        /// </summary>
+        /// <typeparam name="TKey"></typeparam>
+        /// <typeparam name="TValue"></typeparam>
+        /// <param name="this"></param>
+        /// <param name="key">键</param>
+        /// <param name="addValue">添加时的值</param>
+        /// <param name="updateValueFactory">更新时的操作</param>
+        /// <returns></returns>
+        public static TValue AddOrUpdate<TKey, TValue>(this IDictionary<TKey, TValue> @this, TKey key, TValue addValue, Func<TKey, TValue, TValue> updateValueFactory)
+        {
+            if (!@this.ContainsKey(key))
+            {
+                @this.Add(new KeyValuePair<TKey, TValue>(key, addValue));
+            }
+            else
+            {
+                @this[key] = updateValueFactory(key, @this[key]);
+            }
+
+            return @this[key];
+        }
+
+        /// <summary>
+        /// 添加或更新键值对
+        /// </summary>
+        /// <typeparam name="TKey"></typeparam>
+        /// <typeparam name="TValue"></typeparam>
+        /// <param name="this"></param>
+        /// <param name="key">键</param>
+        /// <param name="addValueFactory">添加时的操作</param>
+        /// <param name="updateValueFactory">更新时的操作</param>
+        /// <returns></returns>
+        public static TValue AddOrUpdate<TKey, TValue>(this IDictionary<TKey, TValue> @this, TKey key, Func<TKey, TValue> addValueFactory, Func<TKey, TValue, TValue> updateValueFactory)
+        {
+            if (!@this.ContainsKey(key))
+            {
+                @this.Add(new KeyValuePair<TKey, TValue>(key, addValueFactory(key)));
+            }
+            else
+            {
+                @this[key] = updateValueFactory(key, @this[key]);
+            }
+
+            return @this[key];
+        }
+
+        /// <summary>
+        /// 移除符合条件的元素
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="this"></param>
+        /// <param name="where"></param>
+        public static void RemoveWhere<T>(this ICollection<T> @this, Func<T, bool> @where)
+        {
+            foreach (var obj in @this.Where(@where).ToList())
+            {
+                @this.Remove(obj);
             }
         }
     }

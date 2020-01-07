@@ -1,4 +1,4 @@
-# Masuit.Tools
+﻿# Masuit.Tools
 包含一些常用的操作类，大都是静态类，加密解密，反射操作，硬件信息，字符串扩展方法，日期时间扩展操作，大文件拷贝，图像裁剪，验证码等常用封装。
 
 [官网教程](https://masuit.com/55)  
@@ -8,9 +8,17 @@
 [![LICENSE](https://img.shields.io/badge/license-Anti%20996-blue.svg)](https://github.com/996icu/996.ICU/blob/master/LICENSE)  
 请注意：一旦使用本开源项目以及引用了本项目或包含本项目代码的公司因为违反劳动法（包括但不限定非法裁员、超时用工、雇佣童工等）在任何法律诉讼中败诉的，项目作者有权利追讨本项目的使用费，或者直接不允许使用任何包含本项目的源代码！
 
-⭐⭐⭐喜欢这个项目的话就Star、Fork、Follow素质三连关♂注一下吧⭐⭐⭐
-
-# 特色功能示例代码
+⭐⭐⭐喜欢这个项目的话就Star、Fork、Follow素质三连关♂注一下吧⭐⭐⭐  
+## 安装程序包
+.NET Framework ≥4.6.1
+```shell
+PM> Install-Package Masuit.Tools
+```
+.NET Core 3.x
+```shell
+PM> Install-Package Masuit.Tools.Core
+```
+## 特色功能示例代码
 ### 1.检验字符串是否是Email、手机号、URL、IP地址、身份证号
 ```csharp
 bool isEmail="3444764617@qq.com".MatchEmail();
@@ -861,6 +869,30 @@ Random rnd = new Random();
 int num = rnd.StrictNext();//产生真随机数
 double gauss = rnd.NextGauss(20,5);//产生正态分布的随机数
 ```
+### 34.权重筛选功能
+```csharp
+var data=new List<WeightedItem<string>>()
+{
+     new WeightedItem<string>("A", 1),
+     new WeightedItem<string>("B", 3),
+     new WeightedItem<string>("C", 4),
+     new WeightedItem<string>("D", 4),
+};
+var item=data.WeightedItem();//按权重选出1个元素
+var list=data.WeightedItems(2);//按权重选出2个元素
+```
+```csharp
+var selector = new WeightedSelector<string>(new List<WeightedItem<string>>()
+{
+    new WeightedItem<string>("A", 1),
+    new WeightedItem<string>("B", 3),
+    new WeightedItem<string>("C", 4),
+    new WeightedItem<string>("D", 4),
+});
+var item = selector.Select();//按权重选出1个元素
+var list = selector.SelectMultiple(3);//按权重选出3个元素
+```
+
 # Asp.Net MVC和Asp.Net Core的支持断点续传和多线程下载的ResumeFileResult
 
 允许你在ASP.NET Core中通过MVC/WebAPI应用程序传输文件数据时使用断点续传以及多线程下载。
@@ -1053,5 +1085,5 @@ public IActionResult VirtualFile(bool fileName)
 ### 友情赞助
 |支付宝|微信收款码|QQ转账|
 |---|--|---|
-|![支付宝](https://git.imweb.io/ldqk/imgbed/raw/master/20190810/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20190810204128.png)|![微信](https://git.imweb.io/ldqk/imgbed/raw/master/5ccadc6b53f28.jpg)|![QQ](https://git.imweb.io/ldqk/imgbed/raw/master/5ccadc6c9aa5b.jpg)|
+|![支付宝](https://git.imweb.io/ldqk/imgbed/raw/master/20190810/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20190810204128.png)|![微信](https://git.lug.ustc.edu.cn/ldqk/imgbed/raw/master/2018/2/5ccadc6b53f28.jpg)|![QQ](https://git.lug.ustc.edu.cn/ldqk/imgbed/raw/master/2018/2/5ccadc6c9aa5b.jpg)|
 
